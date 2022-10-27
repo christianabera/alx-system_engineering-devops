@@ -1,27 +1,31 @@
 #!/usr/bin/env bash
-# prints subdomains and their respective IP addresses 
+#
+# Usage: 1-world_wide_web DOMAIN [SUBDOMAIN ...]
+#
+# Audit fully-qualified domain names for AirBnB clone
+#
+# If subdomains are given, they will be audited in the order provided.
+# Otherwise the subdomains 'www', 'lb-01', 'web-01', and 'web-02' will
+# be audited (in the order listed).
 
-func () {
- if [ "$#" -ge 2 ]
- then
-  subdomain="$2.$1"
-  record=$(dig "$subdomain" | grep -A1 'ANSWER SECTION:' | awk '{print$4}')
-  ip=$(dig "$subdomain" | grep -A1 'ANSWER SECTION:' | awk '{print$5}')
-  echo "The subdomain $2 is a"$record" record and points to"$ip""
- else
-  declare -a subdomains=("www" "lb-01" "web-01" "web-02")
-  for x in "${subdomains[@]}"; do
-   subdomain="$x.$1"
-   record=$(dig "$subdomain" | grep -A1 'ANSWER SECTION:' | awk '{print$4}')
-   ip=$(dig "$subdomain" | grep -A1 'ANSWER SECTION:' | awk '{print$5}')
-   echo "The subdomain $x is a"$record" record and points to"$ip""
- done 
- fi
+function audit
+{
+    dig "$2.$1" | awk -v "subdomain=$2" '/ANSWER SECTION/ {getline; print "The subdomain " subdomain " is a " $4 " record and points to " $5}'
+    
 }
 
-if [ "$#" -ge 2 ]
- then
- func $1 $2
-else
- func $1
-fi
+case "$#" in
+    0)  printf 'Usage: %s DOMAIN [SUBDOMAIN ...]\n' "${BASH_SOURCE[0]##*/}" >&2
+        exit 1
+        ;;
+    1)  set -- 'www' 'lb-01' 'web-01' 'web-02' "$1"
+        ;;
+    *)  set -- "${@:2}" "$1"
+        ;;
+esac
+
+while (( $# > 1 ))
+do
+    audit "${!#}" "$1"
+    shift
+done
